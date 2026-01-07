@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addons>
+<addon id="script.subtitles.babel" name="Babel" version="0.0.3" provider-name="g0m3z">
+    <requires>
+        <import addon="xbmc.python" version="3.0.0"/>
+    </requires>
+    <extension point="xbmc.subtitle.module" library="service.py" />
+    <extension point="xbmc.addon.metadata">
+        <summary lang="hu">Felirat letöltő kiegészítő</summary>
+        <description lang="hu">Feliratkereső és letöltő kiegészítő Kodihoz amely a https://feliratok.eu oldalt használja forrásként.</description>
+        <news>
+            [0.0.3] - 2026-01-04
+            - Hozzáadva: Manuális keresés lehetősége
+        </news>
+        <platform>all</platform>
+        <license>GPL-2.0-only</license>
+        <assets>
+            <icon>icon.png</icon>
+            <fanart>fanart.jpg</fanart>
+        </assets>
+    </extension>
+</addon>
+
+</addons>
