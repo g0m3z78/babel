@@ -2,9 +2,9 @@
 <addon id="repository.babel" name="Babel Subtitle Repo" version="1.0.0" provider-name="g0m3z">
     <extension point="xbmc.addon.repository" name="Babel Subtitle Repo">
         <dir>
-            <info compressed="false">https://raw.githubusercontent.com/USER/REPO/main/addons.xml</info>
-            <checksum>https://raw.githubusercontent.com/USER/REPO/main/addons.xml.md5</checksum>
-            <datadir zip="true">https://raw.githubusercontent.com/USER/REPO/main/</datadir>
+            <info compressed="false">https://raw.githubusercontent.com/g0m3z78/babel/main/addons.xml</info>
+            <checksum>https://raw.githubusercontent.com/g0m3z78/babel/main/addons.xml.md5</checksum>
+            <datadir zip="true">https://raw.githubusercontent.com/g0m3z78/babel/main/</datadir>
         </dir>
     </extension>
     <extension point="xbmc.addon.metadata">
