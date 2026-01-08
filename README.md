@@ -1,5 +1,5 @@
 # Babel Kodi Subtitle Repository (Beta)
-Kodi subtitle addon for the http://feliratok.eu webpage
+Kodi subtitle addon for the https://feliratok.eu webpage
 
 v0.0.3 - Initial release that handles manual search functionality too.
 
