@@ -1,2 +1,0 @@
-# babel
-Babel Kodi repo
