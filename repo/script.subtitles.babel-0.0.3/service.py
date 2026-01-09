@@ -1,21 +1,21 @@
-#!/usr/bin/env python3
+ #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
-Kodi felirat kiegészítő a https://feliratok.eu oldalhoz
+Kodi subtitle addon for the https://feliratok.eu subtitle webpage
 
-A kiegészítő feliratok letöltését teszi lehetővé filmekhez illetve sorozatokhoz a https://feliratok.eu oldalról.
+Allows subtitle downloads for movies and tv series from https://feliratok.eu
 """
 
 __author__ = "g0m3z"
-__copyright__ = "Copyright 2026, Babel felirat kiegészítő projekt Kodihoz"
+__copyright__ = "Copyright 2026, Babel subtitle addon for Kodi"
 __license__ = "GNU GPLv2"
-__version__ = "1.0.1"
+__version__ = "0.0.3"
 __maintainer__ = "g0m3z"
-__email__ = ""
-__status__ = "Development"
+__email__ = "g0m3z78 [at] googel's email service"
+__status__ = "Beta"
 
-# Szükséges modulok beimportálása
+# Importing required Python modules
 
 import os
 import sys
@@ -27,15 +27,14 @@ from urllib.parse import parse_qsl
 from urllib.parse import urlencode
 import urllib.request
 
-# Az 're' modult használjuk az adatok kinyeréséhez a https://feliratok.eu
-# oldalról mert az a Python része alapból, így nem kell függőségeket
-# installálni mint pl. az lxml esetén és így nagy valószínűséggel régi Kodi
-# verziókkal is kompatibilis lesz a kiegészítő.
+# Using the 're' module to collect data from HTML pages because it's part of
+# the basic Python package, thus no dependecy installation is required and
+# provides compatibility with older Kodi versions also
 
 import re
 import io
 
-# Nyelveket tartalmazó könyvtár létrehozása.
+# Creating dict with ISO language equivalents
 
 languages = {
     "Albán": "sq",
@@ -46,7 +45,7 @@ languages = {
     "Cseh": "cs",
     "Dán": "da",
     "Finn": "fi",
-    "Flamand": "nl",  # A flamand a holland egyik változata
+    "Flamand": "nl",  # A version of Dutch
     "Francia": "fr",
     "Görög": "el",
     "Héber": "he",
@@ -69,33 +68,33 @@ languages = {
     "Török": "tr"
 }
 
-# A felirat letöltési link domain nevének tárolása egy változóban.
+# Storing the main URL in a variable for easier use..
 main_link = "https://feliratok.eu"
 
-# User-Agent definiálása, hogy a weboldal ne nézze illegális robotnak a
-# kiegészítőt.
+# Defining a User-Agent to avoid banning the script from https://feliratok.eu
+
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
 def log_netmozi_metadata():
     """
-    Megvizsgálja és a kodi.log-ba írja a Kodi által épp lejátszott média meta adatait. Erre azért van szükség mert ha ezek az információk átadódnak (pl. évad és rész) sokkal pontosabban tudunk keresni releváns feliratra.
+    Examines the metadata of the media currently played by Kodi. If those are available (such as the series and episode number) the subtitle can be searched on a more precise way. This function is not in use yet but required for upcoming release
 
     Args:
         None
 
     Returns:
-        Nem tér vissza semmivel. Az eredményt a kodi.log-ba írja.
+        None. Writes the result to the kodi.log file
 
     Raises:
         None
     """
 
-    # Ellenőrizzük, hogy van-e lejátszás
+    # Checking if the media is playing
     if xbmc.Player().isPlayingVideo():
-        # Lekérjük az aktuális tag-et (ez a modern módszer)
+        # Getting the actual tags
         tag = xbmc.Player().getVideoInfoTag()
         
-        # Összegyűjtjük a kritikus adatokat egy szótárba
+        # Collecting the required data into a dictionary
         debug_info = {
             "### DEBUG TITLE ###": tag.getTitle(),
             "### DEBUG MEDIATYPE ###": tag.getMediaType(),
@@ -103,31 +102,31 @@ def log_netmozi_metadata():
             "### DEBUG SEASON ###": tag.getSeason(),
             "### DEBUG EPISODE ###": tag.getEpisode(),
             "### DEBUG IMDB ID ###": tag.getIMDBNumber(),
-            "### DEBUG PLOT ###": tag.getPlot()[:50] + "..." # Csak az eleje, hogy ne szemetelje tele a logot
+            "### DEBUG PLOT ###": tag.getPlot()[:50] + "..." # Getting the first 50 char of the plot not to spam the kodi.log.
         }
         
-        # Kiírjuk a logba szépen formázva
-        xbmc.log("================= ADDON METAADAT ELLENŐRZÉS ================", level=xbmc.LOGINFO)
+        # Writing into the kodi.log on a formatted way
+        xbmc.log("================= BABEL META DATA CHECK ====================", level=xbmc.LOGINFO)
         for key, value in debug_info.items():
-            # Kezeljük le, ha esetleg nincs adat (None)
-            val_str = str(value) if value else "NINCS ADAT"
+            # If there's no data then it's mentioned in the log also.
+            val_str = str(value) if value else "NO DATA"
             xbmc.log(f"{key}: {val_str}", level=xbmc.LOGINFO)
         xbmc.log("=============================================================", level=xbmc.LOGINFO)
     else:
-        xbmc.log("### DEBUG ###: Jelenleg nem fut videó.", level=xbmc.LOGINFO)
+        xbmc.log("### DEBUG ###: No media is played.", level=xbmc.LOGINFO)
 
 def get_html_content(url):
     """
-    Letölti az adott HTML oldal tartalmát az URL paraméterben megadott webcímről és visszatér vele string típusként.
+    Retrieves the HTML content of the given URL as a plain text
 
     Args:
-        url: A weboldal címe aminek a HTML tartalmát szeretnénk visszakapni string típusként.
+        url: URL of the webpage for whose content is required
 
     Returns:
-        string: A weboldal tartalma utf-8-as kódolású plain text-ben.
+        string: Plain text content of the webpage decoded in utf-8
 
     Raises:
-        ConnectionError: Ha a távoli szerver nem érhető el.
+        ConnectionError: If the website is not responding.
     """
     try:
         req = urllib.request.Request(url, headers=headers)
@@ -135,23 +134,26 @@ def get_html_content(url):
         content = response.read().decode('utf-8', errors='ignore')
         return content
     except Exception as error:
-        xbmc.log(f"Babel: A keresés hívása sikertelen: {error}", xbmc.LOGERROR)
+        xbmc.log(f"Babel: Connection error: {error}", xbmc.LOGERROR)
 
 def get_content_by_regex(html, regex, search_type):
     """
-    Adott HTML tartalomból visszatér a RegEx által definiált tartalommal.
-    Két keresési típust ismer: search - az első adott találatig megy a keresés és visszatér az eredménnyel. findall - minden a RegExnek megfelelő tartalommal visszatér.
+    Retrieves data from the given HTML page defined by the regular expression. It uses two search types: search - retrieves the first instance found by the RegEx; findall - retrieves all instances found by the RegEx
     Args:
-        html: A HTML tartalom amin a RegEx keresés végre kell hajtani.
+        html: The HTML content on which the RegEx should be applied
 
-        regex: A RegEx kifejezés ami alapján a keresést végre kell hajtani.
+        regex: The regular expression based on the serch should be executed on the HTML content
 
-        search_type : A keresés típusa. Két értéket vehet fel. 'search' vagy 'findall' attól függően hogy csak az első előfordulást keressük a HTML-ben vagy at összeset.
+        search_type : Type of the search. It accepts two values:
+
+            search - retrieves the first instance found by the RegEx
+
+            findall - retrieves all instances found by the RegEx
 
     Returns:
-        search esetén: match objektummal tér vissza.
+        in case of search: match object
         
-        findall esetén: listával tér vissza
+        in case of findall: list()
 
     Raises:
         None
@@ -163,19 +165,19 @@ def get_content_by_regex(html, regex, search_type):
 
 def search(media_title):
     """
-    A tényleges film illetve sorozatcím keresése a https://feliratok.hu oldalon. Az itt kapott eredményt adódik át a download() függvénynek tényleges letöltésre.
+    Actual subtitle serach of the media on the https://feliratok.hu website. Result of this search is handed over to the download() function which executes the actual subtitle download.
+
     Args:
-        media_title: Az éppen lejátszott média címe.
+        media_title: Title of the media currently played or the search term submitted by the user through the 'Manual search' option from Kodi
 
     Returns:
-        None. A params_to_send változóba teszi be a download callback függvény számára szükséges infomrációkat, így amikor a felhasználó a listázott felirat nevére kattint a download() függvény hívódik meg.
+        None. Prepares a 'params_to_send' variable that contains all neccessary information for the download callback function. If the user clicks on a particular subtitle listed on the Kodi result window this variable is haded over to the download() function
 
     Raises:
         None
     """
 
-    # A query string paramétereinek definiálása. Ebből állítjuk elő a keresési
-    # URL-t amit majd meghívunk.
+    # Defining parameters of the query string that is used to complie the final URL that is called for the web search
 
     http_query_params = {
         'search': media_title,
@@ -194,108 +196,115 @@ def search(media_title):
         'page': 1,
     }
 
-    # Az ékezetes filmcím százalékos kódolása, hogy a webböngésző számára
-    # értelmezhető legyen és a végleges keresési URL összeállítása.
+    # If the media title contains special characters percent coding is
+    # required to make the final query URL interpretable for
+    # https://feliratok.eu website
     query_string = urlencode(http_query_params)
     url = main_link + f'/index.php?{query_string}'
   
-    # A keresési URL logba írása, hogy lássuk pontosan mit hívunk meg
-    xbmc.log(f"Babel: A Kodi által meghívott URL: {url}", xbmc.LOGINFO)
+    # Writing the final search URL to log to see what is submitted to the
+    # website
+    xbmc.log(f"Babel: Search URL called by Kodi: {url}", xbmc.LOGINFO)
     
-    # Az összeállított keresési URL meghívása és a weboldal válaszának
-    # betöltése a 'html_content' változóba.
+    # Getting the HTML response of the search URL from https//feliratok.eu
     html_content = get_html_content(url)
 
-    # Ha a https:// feliratok.hu oldal karbantartás miatt ne melérhető akkor
-    # azt jelzi egy felugró figyelmeztető üzenettel.
+    # If the https://feliratok.hu is down becasue of maintenance it's written
+    # in the kodi.log and a short notice is provided in a Kodi pop-up window
+    # also
     if html_content == "Karbantartas, hamarosan jovunk vissza!":
-        xbmc.log(f"Babel: A https://feliratok.eu karbantartás alatt.", xbmc.LOGINFO)
+        xbmc.log(f"Babel: https://feliratok.eu is under maintenance.", xbmc.LOGINFO)
         xbmcgui.Dialog().notification(
-            'Babel',                  # Címsor
-            'A https://feliratok.eu karbantartás alatt.', # Üzenet
-            xbmcgui.NOTIFICATION_WARNING,     # Ikon (sárga felkiáltójel)
-            5000                              # Meddig látszódjon (ms) -> 5 mp
+            'Babel',                  # Title
+            'https://feliratok.eu is under maintenance.', # Message
+            xbmcgui.NOTIFICATION_WARNING,     # Icon (yellow exclamation mark)
+            5000                              # Message appearance time -> 5 mp
         )
     else:
-        # Az eredmény oldalszámát egyre állítjuk.
+        # Setting the number of result pages to 1
         no_of_pages = 1
 
-        # RegEx minta megadása az oldalak linkjének kinyerésére a HTML
-        # tartalomból több oldalas találati lista esetére
+        # Collecting the links of pagination pages in case of multipage result
         pagination_pattern=r'<div class="pagination">(.*?)</div>'
         pagination_snipet = get_content_by_regex(html_content, pagination_pattern, 'search')
 
-        # Ha több oldal van és létezik a lapozáshoz szükséges HTML kódrészlet akkor kinyerjük a tartalmát és megszámoljuk a benne lévő linkeket. A
-        # linkek száma fogja megmondani, hány oldalunk van pontosan. Az
-        # összeset be kell dolgoznunk ha több oldal van. Ha nem létezik a
-        # pagination HTML snipet akkor az oldal számláló marad 1. 
+        # Search for the pagination HTML snipet. If the serch returns with
+        # multipage results we count how many pagination links can be found in
+        # it as all should be processed by setting the count of the 'page:'
+        # paramtere of the 'http_query_params' string to parse all of the 
+        # result pages. If the pagination snipet doesn't exist the 
+        # 'no_of_pages' variable stays 1
         if pagination_snipet:
-            # A .group(1) adja vissza az első zárójelpár tartalmát
+            # .group(1) returns the content of the first parenthesis pair
             pagination_content = pagination_snipet.group(1)
 
-            # Kiszedjük a lapozás linkjeit a HTML tartalomból
+            # Getting the links of pagination from the HTML content
             links = get_content_by_regex(pagination_content, r'<a\s+href=[^>]+>', 'findall')
 
-            # Megszámoljuk a linkeket. Ennyi oldalunk van.
+            # Counting the no. of links. This gives us the number of result
+            # pages
             no_of_pages = len(links)
 
-        # Az oldalak számát kiírjuk a logba ellenőrzés céljából
+        # Writing no. of pages to the log for control check purpose
         xbmc.log(f"Babel: Felirat oldalak száma: {no_of_pages}", xbmc.LOGINFO)
 
-        # Végigmegyünk az összes oldalon és a 'matches' változób tesszük az
-        # összes felirat nyelvét, címét és letöltési URL-jét. A 'matches'
-        # változót létre kell hoznunk előre mert a ciklusban már hozzá
-        # szeretnénk fűzni és ahhoz már léteznie kell.
+        # Iterating through all the result pages and collecting the flag,
+        # title and download URL of all subtitles. 'matches' variable should be
+        # created in advance as we are adding additional content to it 
+        # iteration by iteration
         matches = list()
 
         for i in range(1, no_of_pages + 1):
 
-            # RegEx minta megadása a film nyelvének, címének és a letöltési linknek a kinyerésére.
+            # Provising RegEx pattern to get the flag, title and download URL
+            # of the subtitle
             pattern = r'<tr id="vilagit".*?<small>(.*?)</small>.*?class="magyar">(.*?)</div>.*?href="([^"]*?action=letolt[^"]*)"'
 
-            # A nyelv, címek és linkek kinyerése a válasz HTML-ből
+            # Getting the flag, title and download URL from the response HTML
+            # and adding it to the 'matches' variable
             matches += re.findall(pattern, html_content, re.DOTALL)
 
-            # Találati oldalszám növelése és a következő oldal HTML tartalmának
-            # lekérése, majd a film nyelvének, címének és letöltési URL-jének a
-            # kinyerése a következő ciklus körben.
+            # Increasing the count of the 'page' parameter in the 
+            #'http_query_params' query string and downloading and parsing the
+            # next result page. After that getting the flag, title and
+            # download URL of all the subtitles on the page in the next
+            # iteration
             http_query_params['page'] = i + 1
             query_string = urlencode(http_query_params)
             url = main_link + f'/index.php?{query_string}'
             html_content = get_html_content(url)
 
 
-        # Az addonhoz tartozó Kodi folyamat azonosító lekérése
+        # Querying the Kodi process ID of the addon
         handle = int(sys.argv[1])
         xbmcplugin.setContent(handle, 'subtitles')
 
-        # Beállítjuk minden visszaadott felirat nyelvét, címét és letöltési
-        # URL-jét.
-
+        # Setting the flag, title and download URL of all returned subtitles
         for lang, title_html, download_link in matches:
-            # Megfelelő zászló ikon rövidítésének beállítása
+            # Setting the proper flag icon based on the 'languages'
+            # translation dict defined at the beginning of this code
             v_flag = languages[lang]
 
-            # Film címének beállítása
+            # Setting title of subtitle
             clean_title = re.sub(r'<[^>]*>', '', title_html).strip()
             
-            # Letöltési link beállítása
+            # Setting the download link of the subtitle
             clean_link = download_link.replace('&amp;', '&')
             full_url = main_link + clean_link if clean_link.startswith('/') else clean_link
 
             if clean_title:
-                # Az egyes feliratokhoz tartozó értékek átadása a Kodinak.
-                # Ezek a list_itemek lesznek láthatók a felirat legördülő
-                # listában.
+                # Handing over the final list of subtiles with all
+                # supplementary information to Kodi. These 'list_items' appear
+                # in the result dropdown list of Kodi
                 list_item = xbmcgui.ListItem(label=clean_title, label2=clean_title)
                 
-                # Beállítjuk a zászlót ikonnak és bélyegképnek
+                # Setting the flag as icon and thumbnail
                 list_item.setArt({
                     'icon': v_flag,
                     'thumb': v_flag
                 }) 
                 
-                # Megfelelő feliratnyelv beállítása
+                # Setting the appropriate subtitle language
                 list_item.setProperty("Language", languages[lang])
                 
                 try:
@@ -304,8 +313,8 @@ def search(media_title):
                 except:
                     list_item.setInfo('video', {'title': clean_title})
 
-                # A params-ba beletesszük a címet is, hogy a download függvény
-                # lássa.
+                # Adding title of subtitle to the 'params_to_send' variable to
+                # make it visible for the download() function
                 params_to_send = {
                     'action': 'download',
                     'url': full_url,
@@ -319,96 +328,99 @@ def search(media_title):
 
 def download(url):
     """
-    A serch() függvényben kiválasztott feliratot tölti le és adja át a Kodi számára.
+    Downloads the subtile selected from the Kodi dorpdown list provided by the search() function
+
     Args:
-        url: A serch() függvény által visszaadott felirat URL-je amire a felhasználó kattint a felirat kiválasztásakor.
+        url: Download URL of the subtitle provided by the search() function and selected by the end user
 
     Returns:
         None.
 
     Raises:
-        Exception: Ha bármi hiba adódik a letöltéssel azt a kodi.log-ba írja. 
+        Exception: If nay excpetion occures during the download the function writes it to the kodi.log
     """
-    # A Kodi által küldött célútvonal lekérése
+    # Getting the destination file path provided by Kodi
     dest_path = params.get('destfile')
     
-    # Ha nincs megadva (pl. kézi teszteléskor), csinálunk egyet a temp mappába
+    # If the destiantion file path doesn't exist we create one into the 'temp'
+    # folder
     if not dest_path:
         temp_dir = xbmcvfs.translatePath('special://temp')
         dest_path = os.path.join(temp_dir, 'felirat.srt')
 
-    xbmc.log(f"Babel: Közvetlen SRT letöltés: {url} -> {dest_path}", xbmc.LOGINFO)
+    xbmc.log(f"Babel: Direct SRT download: {url} -> {dest_path}", xbmc.LOGINFO)
 
     try:
-        # User-Agent itt is fontos, mert a szerver blokkolhatja az alap Python
-        # kérést. Megpróbáljuk letölteni a kiválasztott feliratot.
+        # Defining a User-Agent to avoid banning the script from
+        # https://feliratok.eu
         req = urllib.request.Request(url, headers=headers)
         
         with urllib.request.urlopen(req) as response:
             data = response.read()
             
-            # Közvetlen kiírás a célfájlba (bináris módban 'wb' vagy
-            # xbmcvfs-sel). Az xbmcvfs.File a legbiztosabb minden platformon (
-            #Android/Windows/Linux)
+            # Writing directly to the destiantion file on a binary way or with
+            # xbmcvfs. xbmcvfs.File is the most reliable format on every
+            # platform (Android/Windows/Linux)
             with xbmcvfs.File(dest_path, 'w') as target:
                 success = target.write(data)
             
             if success:
-                xbmc.log("Babel: Felirat sikeresen mentve.", xbmc.LOGINFO)
+                xbmc.log("Babel: Subtitle saved successfully.", xbmc.LOGINFO)
                 
-                # Nagyon fontos: Jeleznünk kell a Kodinak, hogy a fájl készen
-                # áll! Ehhez a letöltött fájl útvonalát kell hozzáadni a
-                # könyvtárhoz.
+                # Important! We have to notify Kodi that the subtitle file is
+                # ready. For this we have to add the path of the downloaded
+                # subtitle file to the directory
                 list_item = xbmcgui.ListItem(label="Felirat")
                 xbmcplugin.addDirectoryItem(int(sys.argv[1]), dest_path, list_item)
                 return True
                 
     except Exception as e:
-        xbmc.log(f"Babel: Hiba a közvetlen letöltésnél: {e}", xbmc.LOGERROR)
-        xbmcgui.Dialog().notification("Babel Hiba", "Nem sikerült a felirat letöltése.")
+        xbmc.log(f"Babel: Error with direct downlad: {e}", xbmc.LOGERROR)
+        xbmcgui.Dialog().notification("Babel Error", "Couldn't download subtitle file.")
     
     return False
 
-# Fő vezérlés
+# Main function
 if __name__ == '__main__':
 
-    # Paraméterek kinyerése a Kodi által használt sys.argv[2]-ből
-    # A [1:] levágja a kezdő kérdőjelet (?)
+    # Getting parameters from sys.argv[2] used by Kodi
+    # [1:] cuts the questionmark (?) at the beginning
     param_string = sys.argv[2][1:] if len(sys.argv) > 2 else ""
     
-    # A paraméter stringet szótárrá (dict) alakítjuk, így a 'searchstring' és
-    # a 'resume' külön kulcsok lesznek.
+    # Transforming the parameter string to dict, thus 'searchstring' and
+    # 'resume' become separate keys
     params = dict(parse_qsl(param_string))
 
-    # Az action lekérése (action: manuális vagy automatikus keresés)
+    # Getting the action (action: auto or manual search)
     action = params.get('action')
     
-    xbmc.log(f"Babel Log: Kapott action: {action}", xbmc.LOGDEBUG)
+    xbmc.log(f"Babel Log: Action type: {action}", xbmc.LOGDEBUG)
 
-    # Keresési logika kezelése (automata és manuális)
+    # Manage search logic (auto and manual)
     if action == 'search' or action == 'manualsearch':
         
         if action == 'manualsearch':
-            # Manuális keresésnél a user által beírt szöveget használjuk
-            # A parse_qsl miatt itt már NEM lesz benne a 'resume:false' plusz
-            # string amit a Kodi néha hozzáfűz az átadott keresendő szöveghez.
+            # In case of manual search we use the search string provided by
+            # the end-user. Sometimes Kodi adds the 'resume:false' string to
+            # the search string hence 'parse_qsl' used above removes this 
+            # unnecssary text.
             query = params.get('searchstring', '')
-            xbmc.log(f"Babel Log: Manuális keresés indítása: {query}", xbmc.LOGINFO)
+            xbmc.log(f"Babel Log: Initiating manual search: {query}", xbmc.LOGINFO)
         else:
-            # Automata keresésnél a lejátszott fájl címe az irányadó
+            # In case of auto search the title of the media provided by Kodi is used for the search
             query = xbmc.getInfoLabel("VideoPlayer.Title")
-            xbmc.log(f"Babel Log: Automata keresés indítása: {query}", xbmc.LOGINFO)
+            xbmc.log(f"Babel Log: Initiating auto search: {query}", xbmc.LOGINFO)
 
-        # Ha van keresendő szöveg, meghívjuk a kereső függvényt
+        # If serch string is provided we call the search() function with it
         if query:
             search(query)
         else:
-            xbmc.log("Babel Log: Hiba - üres keresési kulcsszó!", xbmc.LOGERROR)
+            xbmc.log("Babel Log: Error - Empty search phrase!", xbmc.LOGERROR)
 
-    # Letöltési logika kezelése
+    # Managing download logic
     elif action == 'download':
         download_url = params.get('url')
         if download_url:
             download(download_url)
         else:
-            xbmc.log("Babel Log: Hiba - hiányzó letöltési URL!", xbmc.LOGERROR) 
+            xbmc.log("Babel Log: Error - Missing download URL!", xbmc.LOGERROR) 
